@@ -1,4 +1,4 @@
-# Cryptographic Protocol Appendix v0.2 
+# Cryptographic Protocol v0.2 
   
 > Note: For **what is standardized and operationally ready today**, this appendix uses the current NIST PQ standards for KEMs and signatures: **ML-KEM (FIPS 203), ML-DSA (FIPS 204), and SLH-DSA (FIPS 205)**. NIST finalized them in 2024, and BSI explicitly recommends designing new crypto products for **cryptographic agility** during the PQ transition. At the same time, the official election-standard landscape still treats cryptographic E2E voting protocols as something that must be submitted with a full written specification, security analysis, and reference implementation for public evaluation, rather than something settled once and for all. So this appendix uses a **PQ-ready control plane now**, and a **crypto-agile privacy core** whose first implementation can use a mature classical E2E-verifiable voting core until a PQ replacement is ready at similar assurance.    
   
