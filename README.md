@@ -13,7 +13,7 @@ The platform is not merely a voting application. It is a civic operating system 
 ## Documents
 
 1. [Glossary](Glossary.md)
-2. [Governance and Thret Model](<Constitutional Governance and Threat Model v0.1.md>)
+2. [Governance and Threat Model](<Constitutional Governance and Threat Model v0.1.md>)
 3. [Protocol](<Cryptographic Protocol Appendix v0.1.md>)
 4. [Requirements](PRD.md)
 
