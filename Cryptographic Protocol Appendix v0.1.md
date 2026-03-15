@@ -1,6 +1,6 @@
 # Cryptographic Protocol Appendix v0.1  
   
-> Note: For what is standardized and operationally ready today, this appendix uses the current NIST PQ standards for KEMs and signatures: ML-KEM (FIPS 203), ML-DSA (FIPS 204), and SLH-DSA (FIPS 205). NIST finalized them in 2024, and BSI explicitly recommends designing new crypto products for **cryptographic agility** during the PQ transition. At the same time, the official election-standard landscape still treats cryptographic E2E voting protocols as something that must be submitted with a full written specification, security analysis, and reference implementation for public evaluation, rather than something settled once and for all. So this appendix uses a **PQ-ready control plane now**, and a **crypto-agile privacy core** whose first implementation can use a mature classical E2E-verifiable voting core until a PQ replacement is ready at similar assurance.    
+> Note: For **what is standardized and operationally ready today**, this appendix uses the current NIST PQ standards for KEMs and signatures: **ML-KEM (FIPS 203), ML-DSA (FIPS 204), and SLH-DSA (FIPS 205)**. NIST finalized them in 2024, and BSI explicitly recommends designing new crypto products for **cryptographic agility** during the PQ transition. At the same time, the official election-standard landscape still treats cryptographic E2E voting protocols as something that must be submitted with a full written specification, security analysis, and reference implementation for public evaluation, rather than something settled once and for all. So this appendix uses a **PQ-ready control plane now**, and a **crypto-agile privacy core** whose first implementation can use a mature classical E2E-verifiable voting core until a PQ replacement is ready at similar assurance.    
   
 ## 1. Status, scope, and conformance language  
   
@@ -220,17 +220,41 @@ This part is operationally ready because the NIST standards are final and public
   
 **6.2 PP-1: initial privacy-core profile**  
   
-This is the part that is **crypto-agile by design**.  
+This is the privacy-core profile used by a contest unless the contest manifest names another approved profile.  
   
 The privacy core MUST provide these properties:  
-- Ballot secrecy  
-- One-time eligibility  
-- Anonymous contest handle issuance  
-- Well-formed-ballot proofs  
-- Replay/revote handling  
-- Public tally verifiability  
+	•	ballot secrecy for contest classes marked secret,  
+	•	one-time eligibility,  
+	•	anonymous contest-handle issuance,  
+	•	well-formed-ballot proofs,  
+	•	replay and revote handling,  
+	•	public tally verifiability,  
+	•	compatibility with the public bulletin-board evidence model,  
+	•	compatibility with the contest-class fail-safe rules.  
   
-In v1, PP-1 MAY use a mature classical E2E-verifiable voting construction, such as a mixnet or homomorphic-tally family with public proofs, because the official standards and approval processes retrieved here do not yet amount to a settled PQ standard for anonymous credentials plus verifiable tally. That is why PP-1 is isolated behind a stable protocol interface.    
+In v1, PP-1 MAY use a mature classical E2E-verifiable voting construction, such as a mixnet or homomorphic-tally family with public proofs, because the official standards and approval processes retrieved here do not yet amount to a settled PQ standard for anonymous credentials plus verifiable tally. That is why PP-1 is isolated behind a stable protocol interface.  
+  
+**6.2.1 Contest binding**  
+Every contest manifest MUST specify:  
+	•	privacy_profile_id,  
+	•	tally_family_id,  
+	•	proof_family_id,  
+	•	verifier_profile_id,  
+	•	suite_id for the control plane,  
+	•	whether the selected privacy profile is approved for that contest class.  
+  
+No contest may open unless its manifest pins these values.  
+  
+**6.2.2 Approval discipline**  
+A privacy-core profile MAY be used only for contest classes for which it has been explicitly approved through the applicable public review and certification process.  
+  
+The fact that a privacy-core profile is acceptable for a lower-stakes or consultative contest class does not imply that it is acceptable for a higher-stakes or binding contest class.  
+  
+**6.2.3 Mid-contest stability**  
+No contest may silently switch privacy profile, tally family, proof family, or verifier profile after the contest opens.  
+  
+If a selected profile becomes unavailable or revoked mid-contest, the contest must follow the fail-safe rules for pause, downgrade, restart, or rerun, but may not silently continue under altered assumptions.  
+  
   
 **6.3 Crypto-agility rules**  
   
@@ -340,19 +364,39 @@ Citizen derives:
   
 **8.5 Recovery**  
   
-Lost-client recovery for high-stakes contests is **supervised only**.  
+Lost-client recovery for high-stakes contests is supervised only.  
   
-Recovery issues a **Supersession Record**:  
+Recovery issues a Supersession Record:  
+  
 ```
-SR = (CID, H_old, H_new, reason_code, sig_recovery_quorum)
+SR = (CID, H_old, H_new, reason_code, timestamp, sig_recovery_quorum)
 
 ```
   
 Rules:  
-* Any later direct ballot under H_new supersedes any ballot under H_old.  
-* SR is public.  
-* SR reveals no legal identity.  
-* Recovery is rate-limited and audited.  
+	•	any later direct ballot under H_new supersedes any ballot under H_old,  
+	•	SR is publicly logged,  
+	•	SR never reveals legal identity,  
+	•	recovery is rate-limited and audited,  
+	•	recovery must not create a second effective participation path.  
+  
+**8.5.1 Privacy note on supersession**  
+The supersession mechanism intentionally links two anonymous contest handles for the limited purpose of preserving contest integrity and public verifiability of supersession.  
+  
+This is a controlled privacy cost and MUST be treated as such.  
+  
+The publication of SR is permitted because:  
+	•	it does not reveal legal identity,  
+	•	it is necessary to explain why H_old no longer resolves,  
+	•	it allows independent verification that recovery did not create duplicate effective participation.  
+  
+Recovery MUST therefore remain rare, supervised, rate-limited, and explicitly logged.  
+  
+**8.5.2 Recovery challengeability**  
+Every SR MUST be challengeable through the challenge interface defined in this appendix.  
+  
+A recovery event may block certification if it is alleged to have created duplicate effective participation, invalidated a valid ballot without basis, or materially weakened secrecy beyond the declared assumptions.  
+  
   
 ## 9. Delegation protocol  
   
@@ -374,40 +418,162 @@ DR verifies:
   
 DR then publishes the accepted edge record.  
   
-**9.2 Delegation freeze**  
+**9.2 Delegation freeze and publication discipline**  
   
 To make override semantics verifiable and to reduce end-window chaos, delegation updates close at T_freeze, while direct ballots remain open until T_close.  
   
-This is a deliberate protocol choice.  
-* T_freeze < T_close  
-* The frozen delegation snapshot DS* is quorum-signed and published.  
-* Any later direct ballot still overrides DS*.  
-  
-This is the cleanest way to make “direct vote overrides proxy” a deterministic and auditable rule instead of a fuzzy UI promise.  
-  
-**9.3 Transitivity policy**  
-  
-Because you chose all proxy modes, the system supports transitivity in principle, but not uniformly.  
-  
-Recommended enforcement:  
-* Tier 1 consultative: transitivity allowed with depth cap d_max  
-* Tier 2/3 binding: one-hop only by default  
-  
-That is not ideological. It is a verification and cartel-risk control.  
-  
-**9.4 Delegate instructions**  
-  
-Delegates submit signed public instructions.  
+This is a deliberate protocol rule.  
   
 ```
-Delegate -> DIS : DI(CID, delegate_id, version, choice, rationale_ref)
+T_freeze < T_close
 
 ```
   
-Rule:  
-* Only the highest valid version before T_close counts.  
-* Delegate instructions are public after close.  
-* Pre-close visibility may be allowed, but delegated-weight totals are not.  
+At T_freeze, the Delegation Registry computes the frozen delegation snapshot DS*.  
+  
+**9.2.1 Pre-close publication rule**  
+Before T_close, the system MUST publish only a signed commitment to DS*, not the full snapshot, unless a contest-class rule explicitly authorizes stronger pre-close visibility.  
+  
+The commitment object is:  
+  
+```
+DSC = (CID, T_freeze, hash(DS*), record_count, policy_digest, timestamp, sig_DR_quorum)
+
+```
+  
+Purpose:  
+	•	prove that DS* was fixed at T_freeze,  
+	•	prevent later silent reconstruction,  
+	•	avoid unnecessary pre-close exposure of delegation structure.  
+  
+**9.2.2 Post-close publication rule**  
+After T_close, the full DS* MUST be published for universal verification unless a secrecy-class rule requires delayed or coarsened publication.  
+  
+The post-close publication package MUST allow independent verifiers to confirm:  
+	•	every accepted delegation update before T_freeze was either included or superseded correctly,  
+	•	no post-freeze update altered DS*,  
+	•	direct-vote override was computed against the committed DS*.  
+  
+**9.2.3 Contest-class exceptions**  
+Any contest class that allows publication of more than DSC before T_close MUST explicitly define:  
+	•	what additional delegation information is visible,  
+	•	why that visibility is compatible with its secrecy and anti-coercion posture,  
+	•	which body authorized the exception.  
+  
+No contest may rely on informal operator choice for pre-close delegation visibility.  
+  
+**9.3 Delegation cap enforcement**  
+  
+Delegation caps are normative, not advisory.  
+  
+**9.3.1 Cap semantics**  
+For each contest class, the system MUST define whether the applicable cap is:  
+	•	an incoming-edge cap,  
+	•	an effective resolved-weight cap,  
+	•	or both.  
+  
+Unless the contest manifest states otherwise, the cap applies to effective resolved weight.  
+  
+**9.3.2 Enforcement point**  
+Cap compliance MUST be checked:  
+	•	at delegation acceptance time where feasible,  
+	•	and again at post-freeze resolution time.  
+  
+This dual check exists because transitive resolution and supersession can alter effective concentration after an edge was initially accepted.  
+  
+**9.3.3 Overflow behavior**  
+When an attempted delegation would breach the applicable cap, the system MUST follow one of the predeclared behaviors bound to the contest class:  
+	•	reject the new delegation attempt,  
+	•	accept it only if prior delegations are re-resolved under explicit spillover rules,  
+	•	or place the attempted delegation into a pending state that has no constitutional effect until the citizen chooses an alternative.  
+  
+No silent truncation is allowed.  
+  
+**9.3.4 Citizen notice**  
+If a delegation attempt fails or becomes non-effective due to cap enforcement, the citizen MUST receive a clear notice and a path to choose another delegate or revert to direct participation.  
+  
+**9.3.5 Public evidence**  
+After close, the result package MUST include artifacts sufficient for independent verification that:  
+	•	the applicable cap model was the one declared,  
+	•	cap checks were actually performed,  
+	•	overflow behavior matched policy,  
+	•	no delegate exceeded the allowed bound under the declared semantics.  
+  
+**9.4 Transitivity policy**  
+  
+Because the system supports both direct participation and proxy voting, transitivity must be contest-class-bound, not left to default interpretation.  
+  
+**9.4.1 Tier 1 consultative contests**  
+For Tier 1 consultative contests, transitivity MAY be enabled with a declared maximum depth d_max.  
+  
+If enabled, d_max MUST be included in the contest manifest.  
+  
+**9.4.2 Tier 2 binding local or community contests**  
+For Tier 2 binding contests, transitivity SHOULD be disabled unless a specific legal rule authorizes it for that contest class.  
+  
+If enabled, the contest manifest MUST state:  
+	•	the legal basis,  
+	•	the maximum depth,  
+	•	the cycle-handling rule,  
+	•	the cap model used for effective concentration.  
+  
+**9.4.3 Tier 3 binding national contests**  
+For Tier 3 binding national contests, transitivity MUST be disabled unless a higher constitutional act explicitly authorizes it.  
+  
+Absent such authorization, binding national contests use one-hop delegation only.  
+  
+**9.4.4 Cycle handling**  
+If transitivity is enabled and a cycle is detected, the system MUST apply the predeclared fallback rule for that contest class.  
+  
+The fallback rule MUST be one of:  
+	•	abstention,  
+	•	revert to direct vote if one exists,  
+	•	revert to issue-specific non-cyclic edge if one exists.  
+  
+No cycle may be resolved through silent operator choice.  
+  
+**9.4.5 Public verifiability**  
+If transitivity is enabled, the result package MUST expose enough information for an independent verifier to reproduce transitive resolution under the declared depth cap without learning legal identity.  
+  
+**9.5 Delegate instructions**  
+  
+Delegates submit signed public instructions.  
+  
+Delegate -> DIS : DI(CID, delegate_id, version, choice, rationale_ref, timestamp, sig_delegate)  
+  
+Only the highest valid version before T_close counts.  
+  
+A delegate’s effective vote on delegated weight is derived from DI, not from a secret personal ballot.  
+  
+That is a semantic rule, not a user-interface convenience.  
+  
+**9.5.1 Visibility policy by contest class**  
+The visibility of DI before T_close MUST be bound to contest class.  
+	•	Tier 1 consultative contests: DI MAY be visible before close.  
+	•	Tier 2 binding local/community contests: pre-close visibility MUST be explicitly set by law or manifest policy.  
+	•	Tier 3 binding national contests: DI SHOULD NOT expose final binding choice before close unless a higher rule explicitly authorizes that visibility model.  
+  
+**9.5.2 Minimum pre-close disclosure**  
+Even where full DI is not visible before close, a delegate MAY publish:  
+	•	rationale material,  
+	•	issue commentary,  
+	•	declared principles,  
+	•	conflict disclosures,  
+	•	prior voting history.  
+  
+This material does not substitute for the contest-bound DI that becomes effective in resolution.  
+  
+**9.5.3 Weight opacity before close**  
+No contest class may publish real-time or near-real-time delegated-weight totals by delegate during the open voting window.  
+  
+This rule exists to reduce herding, coercive signaling, and end-window pressure.  
+  
+**9.5.4 Post-close accountability**  
+After close, the effective DI set for the contest MUST be published in the result package, subject only to lawful delay where a secrecy-class rule requires it.  
+  
+⸻  
+  
+  
   
 ## 10. Direct ballot protocol  
   
@@ -419,13 +585,34 @@ Citizen -> BB : DBE(CID, H, seq_b, ciphertext, proof_valid_ballot, proof_valid_U
 ```
   
 BB verifies:  
-- Credential proof is valid.  
-- Ballot is well-formed.  
-- Sequence number (seq_b) is strictly greater than the previous sequence number (seq_b) for H.  
-- Contest is open.  
-- No supersession record invalidates H.  
+	•	credential proof is valid,  
+	•	ballot is well-formed,  
+	•	H belongs to this contest,  
+	•	seq_b is strictly greater than the previous accepted sequence number for H,  
+	•	contest is open,  
+	•	no supersession record invalidates H.  
   
-BB returns an acceptance receipt and posts the accepted record to PBB.  
+If accepted, BB returns an acceptance receipt and records the acceptance event.  
+  
+**10.1.1 Bulletin-board publication during open voting**  
+During the open voting window, the public bulletin board MUST operate in one of two declared modes:  
+  
+**Commitment mode**  
+The system publishes signed commitments, checkpoints, and aggregate record counts sufficient to prove append-only behavior without exposing full accepted-record manifests during the open window.  
+  
+**Full-record mode**  
+The system publishes accepted-record manifests during the open window.  
+  
+The contest manifest MUST declare which mode applies.  
+  
+**10.1.2 Default rule**  
+For Tier 2 and Tier 3 contests, Commitment mode is the default.  
+  
+Full-record mode during the open window may be used only where the contest class and secrecy posture explicitly allow it.  
+  
+**10.1.3 Post-close disclosure**  
+After T_close, the accepted direct-ballot manifest required for universal verification MUST be published, unless a secrecy-class rule requires delayed or coarsened publication.  
+  
   
 **10.2 Revote semantics**  
   
@@ -566,6 +753,50 @@ Auditors may verify:
 - Incident and challenge logs  
 - Retention/destruction events  
   
+**13.4 Challenge object model**  
+  
+All constitutionally relevant artifacts MUST be challengeable through typed challenge records.  
+  
+**13.4.1 Challenge record**  
+CR = (challenge_id, CID, object_type, object_ref, challenge_type, filer_role, timestamp, status, sig_filer)  
+  
+Where:  
+	•	object_type identifies the contested artifact class,  
+	•	object_ref identifies the specific contested object or manifest entry,  
+	•	challenge_type identifies the nature of the claim.  
+  
+**13.4.2 Minimum challengeable object classes**  
+At minimum, the following object classes MUST be challengeable:  
+	•	CET issuance state where legally reviewable,  
+	•	UPC issuance event class,  
+	•	supersession record,  
+	•	delegation edge,  
+	•	delegation snapshot commitment or snapshot,  
+	•	direct-ballot acceptance or rejection record,  
+	•	delegate instruction,  
+	•	tally manifest,  
+	•	proof bundle,  
+	•	certification artifact,  
+	•	destruction event,  
+	•	incident event,  
+	•	software or verifier manifest.  
+  
+**13.4.3 Challenge lifecycle**  
+Each challenge MUST have a public status state machine:  
+	•	filed,  
+	•	accepted for review,  
+	•	merged with related challenge,  
+	•	dismissed with reasons,  
+	•	sustained,  
+	•	resolved by remedy,  
+	•	escalated,  
+	•	closed.  
+  
+No challenge may disappear into informal administrative handling.  
+  
+**13.4.4 Certification dependency**  
+The contest manifest or certification rules MUST specify which challenge types automatically block certification, which may proceed in parallel, and which require only post-certification review.  
+  
 **14. Audit log model**  
   
 Every critical service MUST emit append-only signed audit records.  
@@ -598,61 +829,105 @@ This makes the audit system “open and comprehensive” rather than a closed ad
   
 ## 15. Result reproducibility  
   
-Every certified contest MUST publish a reproducibility package containing:  
-- The contest manifest includes:  
-- The exact protocol version  
-- Cryptographic suite IDs  
-- A signed delegation snapshot  
-- An accepted direct-ballot manifest  
-- A delegate-instruction manifest  
-- Proof files  
-- Verifier source  
-- Deterministic build instructions  
-- Verifier container hash  
-- Expected outputs  
+Every certified contest MUST publish a reproducibility package containing all public artifacts and manifests necessary for an independent party to reproduce, from public artifacts alone and under the declared contest profile:  
+	•	the counted direct-ballot set,  
+	•	the final delegation snapshot or committed snapshot resolution state,  
+	•	the delegated expansion,  
+	•	the final tally,  
+	•	the verifier environment used for official certification.  
   
-Any independent party must be able to reproduce from public artifacts alone:  
-- counted direct-ballot set  
-- delegated expansion  
-- final tally  
+At minimum, the reproducibility package MUST include:  
+	•	the contest manifest,  
+	•	the exact protocol version,  
+	•	cryptographic suite identifiers,  
+	•	the privacy profile identifier,  
+	•	the tally family identifier,  
+	•	the proof family identifier,  
+	•	the verifier profile identifier,  
+	•	the signed delegation snapshot commitment and, where publication is permitted, the full delegation snapshot,  
+	•	the accepted direct-ballot manifest published under the contest’s bulletin-board mode rules,  
+	•	the delegate-instruction manifest,  
+	•	the result bundle,  
+	•	the proof bundle,  
+	•	the software manifest,  
+	•	verifier source or equivalent verifier specification,  
+	•	deterministic build instructions,  
+	•	verifier container or binary hashes,  
+	•	the expected canonical outputs.  
+  
+Any independent verifier MUST be able to use this package to determine whether:  
+	•	the counted direct-ballot set was derived according to the accepted sequence and supersession rules,  
+	•	delegation resolution was performed from the committed or published snapshot according to the declared contest policy,  
+	•	delegated expansion matched the declared transitivity, cap, and fallback rules,  
+	•	the final tally corresponds to the published manifests and proof bundle,  
+	•	the software and verifier artifacts used for certification match the declared manifests and hashes.  
+  
+Where a contest’s secrecy class forbids immediate publication of some artifact in full, the reproducibility package MUST still publish:  
+	•	the commitment, hash, or manifest entry proving that the artifact existed in the certified state,  
+	•	the legal basis for delayed or restricted release,  
+	•	the conditions and timeline under which fuller disclosure, restricted review, or sealed audit access becomes available.  
+  
+No contest may be certified unless the reproducibility package is sufficient for an independent party to reproduce the certified result under the declared contest profile, subject only to explicitly declared secrecy-class restrictions.  
   
   
 ## 16. Retention and destruction requirements  
   
 The system must retain enough to verify and challenge, but no more.  
   
-**16.1 IA**  
+Retention policy is defined per actor and per artifact class.  
   
+**16.1 IA**  
 Retains authentication logs per identity law.  
 Must not receive H or ballot data.  
   
 **16.2 EA**  
-  
 Retains entitlement issuance ledger until challenge close, then archives under separate legal controls.  
 Must not receive ballots or delegation graph.  
   
 **16.3 PCA**  
-  
-Retains blind issuance transcript metadata and service logs, but not final H.  
+Retains issuance transcript metadata and service logs, but not final H.  
   
 **16.4 DR**  
-  
-Publicly retains signed DS* and accepted delegation records by anonymous handle.  
+Retains accepted delegation records and the post-close delegation snapshot artifacts required for verification.  
   
 **16.5 BB**  
-  
-Retains accepted direct-ballot envelopes and receipts until challenge close. Superseded direct ballots for the same H remain sealed; after challenge close they are destroyed or cryptographically shredded.  
+Retains accepted direct-ballot envelopes and receipts until challenge close.  
+Superseded direct ballots for the same H remain sealed; after challenge close they are destroyed or cryptographically shredded according to contest policy.  
   
 **16.6 Tally materials**  
-  
-Trustee ephemeral session material is destroyed immediately after certification or contest halt.  
+Trustee ephemeral session material is destroyed immediately after certification or contest halt, except where a challenge hold lawfully preserves specific material.  
   
 **16.7 Destruction records**  
-  
 Every destruction operation emits a signed destruction event into the audit log.  
   
-This is required by both privacy discipline and by the CoE requirement that e-voting process and store only the personal data needed and preserve secrecy of erased prior choices.    
+**16.8 Artifact-retention matrix**  
+Every contest class MUST publish an artifact-retention matrix with at least these columns:  
+	•	artifact class,  
+	•	visibility class: public / restricted / sealed,  
+	•	retention horizon,  
+	•	destruction method,  
+	•	destruction evidence object.  
   
+At minimum, the matrix MUST cover:  
+	•	entitlement-related ledgers,  
+	•	issuance metadata,  
+	•	delegation records,  
+	•	delegation snapshot commitment,  
+	•	delegation snapshot full artifact,  
+	•	direct-ballot acceptance records,  
+	•	superseded ballot records,  
+	•	supersession records,  
+	•	proof bundles,  
+	•	result bundles,  
+	•	verifier manifests,  
+	•	incident logs,  
+	•	challenge records,  
+	•	destruction events.  
+  
+**16.9 Permanent public artifacts**  
+The appendix or contest manifest MUST explicitly identify which artifacts remain permanently public on the bulletin board or transparency log, and which artifacts are retained only through challenge close or by separate legal rule.  
+  
+No artifact class may drift between permanent and temporary retention by informal operator choice.  
 ## 17. Fault resilience behavior  
   
 **17.1 IA unavailable**  
@@ -742,23 +1017,151 @@ Mechanism: ML-KEM / ML-DSA / SLH-DSA in the control plane from v1; privacy core 
   
 ## 19. Residual assumptions  
   
-These are still assumptions, but they are no longer hidden.  
-- No single actor can link person to ballot.  
-- Stronger privacy against multi-actor collusion depends on the blind issuance design, batching, and institutional separation actually being enforced.  
-- Client compromise is still possible, which is why supervised channels remain mandatory for the highest-stakes tiers.  
-- PQ readiness is strong today for control-plane KEMs and signatures, not equally strong yet for the full anonymous-voting privacy core.  
-- Public verifiability depends on open verifier diversity, not a single official verifier binary.  
+These assumptions remain true only if the declared institutional and operational conditions actually hold. They are therefore explicit, not hidden.  
   
-## 20. Acceptance tests for this appendix  
+**19.1 Secrecy and collusion assumptions**  
+The secrecy model is designed so that no single actor among IA, EA, PCA quorum minority, DR, or BB can, by acting alone, map a final cast ballot to a legal person.  
   
-Minimum test suite:  
-1. Attempt to duplicate entitlement issuance for the same person and contest.  
-2. Cast a direct ballot after setting a delegation and verify if the override is successful.  
-3. Cast multiple direct ballots and verify if the highest sequence number of ballots is counted.  
-4. Create a delegation cycle and verify if the deterministic fallback is working correctly.  
-5. Exceed the cap or invalid target and verify if the rejection is happening as expected.  
-6. Recover from a lost client in a supervised channel and verify if the supersession is happening correctly.  
-7. Replay a stale ballot with a lower sequence number and verify if the rejection is happening as expected.  
-8. Reproduce the final result from public artifacts only and verify if the result is accurate.  
-9. Rotate the crypto suite between contests and verify if the old contests remain verifiable.  
-10. Simulate a trustee quorum loss and verify if no certification is possible.  
+Secrecy may fail if collusions occur beyond the declared tolerance threshold.  
+  
+The appendix MUST treat the following as system-breaking collusions unless a stronger formally analyzed model is declared:  
+	•	IA + EA + effective control over UPC issuance,  
+	•	IA + BB with a broken or bypassed anonymous issuance layer,  
+	•	EA + PCA quorum + DR where issuance isolation is not preserved,  
+	•	any coalition that can both reconstruct legal identity and control or inspect final ballot acceptance state.  
+  
+**19.2 Client compromise assumptions**  
+Client compromise remains possible, especially in remote settings.  
+  
+The system therefore assumes:  
+	•	supervised channels remain necessary for the highest-stakes classes,  
+	•	revoting and override reduce but do not eliminate coercion or malware risk,  
+	•	local device secrecy cannot be treated as a constitutional guarantee.  
+  
+**19.3 PQ readiness assumptions**  
+PQ readiness is strong for the control-plane KEM and signature layers in v1.  
+  
+PQ readiness is not yet equally mature for the full anonymous-voting privacy core.  
+  
+That is why the privacy core is abstracted behind a stable interface and pinned per contest.  
+  
+**19.4 Verifier diversity assumptions**  
+Public verifiability depends on the existence of multiple independent verifiers and not solely on one official verifier binary.  
+  
+**19.5 Supervised-channel neutrality assumptions**  
+The constitutional validity of supervised fallback depends on those channels being practically reachable and institutionally neutral.  
+  
+Where neutrality or reachability fails, supervised fallback does not cure the red-line condition by itself.  
+  
+  
+## 20. Acceptance tests for the protocol  
+  
+The protocol appendix is not conformant unless the following minimum acceptance tests pass for the applicable contest class and are reproducible from the declared test harness, manifests, and verifier profile.  
+  
+**20.1 Identity, eligibility, and participation-right tests**  
+	1.	Attempt to duplicate entitlement issuance for the same legal person and contest and verify that a second effective participation right cannot be created.  
+	2.	Attempt to derive more than one effective anonymous contest handle for the same contest entitlement and verify that only one effective participation identity can exist for the contest.  
+	3.	Simulate high-stakes recovery and verify that supervised recovery creates a valid supersession record without creating a second effective participation path.  
+	4.	Attempt protected participation with an expired, revoked, or wrong-contest credential and verify rejection.  
+  
+**20.2 Delegation and override tests**  
+	5.	Set a valid delegation, then cast a direct ballot, and verify that the direct ballot overrides delegation in final resolution.  
+	6.	Register multiple delegation updates for the same handle and verify that only the highest valid delegation sequence before T_freeze is effective.  
+	7.	Attempt a delegation update after T_freeze and verify rejection or non-effect according to contest policy.  
+	8.	Compute DS*, publish DSC, and verify that:  
+	•	before T_close, only the signed commitment is public in commitment mode,  
+	•	after T_close, the full DS* is published where allowed,  
+	•	the published DS* matches the pre-close commitment.  
+  
+**20.3 Delegation-cap and transitivity tests**  
+	9.	Attempt to exceed the applicable delegation cap and verify that the declared overflow behavior is followed exactly:  
+	•	rejection,  
+	•	spillover under declared rules,  
+	•	or pending non-effective state.  
+	10.	Verify that a citizen receives explicit notice when a delegation becomes non-effective due to cap enforcement.  
+	11.	For a Tier 1 contest with transitivity enabled, create a valid chain and verify that resolution follows the declared depth cap.  
+	12.	For a Tier 2 contest, verify that transitivity is disabled unless explicitly authorized in the contest manifest.  
+	13.	For a Tier 3 contest, verify that one-hop delegation is enforced unless a higher authorization is present.  
+	14.	Create a delegation cycle and verify that the declared cycle fallback rule is applied deterministically.  
+  
+**20.4 Direct-ballot and revote tests**  
+	15.	Cast multiple direct ballots for the same handle and verify that only the highest valid sequence number received no later than T_close is counted.  
+	16.	Replay a stale ballot with a lower sequence number and verify rejection.  
+	17.	Submit a ballot under a superseded handle and verify rejection or non-effect according to supersession rules.  
+	18.	Verify that abstention is treated as a valid explicit outcome and not inferred from silence.  
+  
+**20.5 Bulletin-board and publication-mode tests**  
+	19.	Run a contest in commitment mode and verify that during open voting the bulletin board publishes only commitments, checkpoints, and counts required by policy.  
+	20.	Run a contest in full-record mode and verify that accepted-record publication matches the declared manifest policy.  
+	21.	Verify that post-close accepted direct-ballot manifests are published according to the contest’s secrecy and publication rules.  
+	22.	Verify append-only integrity of the bulletin board across checkpoints.  
+  
+**20.6 Delegate-instruction tests**  
+	23.	Submit multiple delegate instructions for the same contest and verify that only the highest valid version before T_close is effective.  
+	24.	Verify that pre-close visibility of delegate instructions matches the contest-class policy.  
+	25.	Verify that delegated-weight totals are not published before close.  
+	26.	Verify that post-close effective delegate instructions are included in the result package where required.  
+  
+**20.7 Tally and reproducibility tests**  
+	27.	Reproduce the final result from public artifacts only and verify that the reproduced result matches the certified result.  
+	28.	Verify that the counted direct-ballot set corresponds exactly to accepted sequence and supersession rules.  
+	29.	Verify that delegated expansion matches declared cap, transitivity, and fallback rules.  
+	30.	Verify that the final tally corresponds to:  
+  
+	•	the direct-ballot tally,  
+	•	the delegated deterministic tally,  
+	•	the published proof bundle,  
+	•	and the contest manifest.  
+  
+**20.8 Challenge and certification tests**  
+	31.	File typed challenges against at least the following object classes and verify lifecycle handling:  
+  
+	•	supersession record,  
+	•	delegation edge,  
+	•	delegation snapshot commitment,  
+	•	direct-ballot acceptance record,  
+	•	delegate instruction,  
+	•	proof bundle,  
+	•	certification artifact.  
+  
+	32.	Verify that challenge status transitions follow the declared public state machine.  
+	33.	Verify that challenge types declared as certification-blocking actually prevent certification until resolved.  
+	34.	Verify that non-blocking challenge types remain visible and reviewable without silently disappearing.  
+  
+**20.9 Retention and destruction tests**  
+	35.	Verify that superseded ballots remain sealed until challenge close and are then destroyed or cryptographically shredded according to the retention policy.  
+	36.	Verify that every destruction operation emits a signed destruction event.  
+	37.	Verify that the published artifact-retention matrix covers all mandatory artifact classes and that actual retention behavior matches the matrix.  
+	38.	Verify that permanent public artifacts remain available after challenge close while temporary artifacts follow the declared destruction path.  
+  
+**20.10 Trust-chain and verifier tests**  
+	39.	Rebuild the verifier from declared source and build instructions and verify that hashes match the published manifest.  
+	40.	Simulate a mismatch between published manifests and actual verifier or software artifacts and verify that certification cannot proceed.  
+	41.	Simulate a compromised or revoked software line and verify that the affected contest enters the correct fail-safe state rather than silently continuing.  
+	42.	Rotate the cryptographic suite between contests and verify that old contests remain verifiable under their pinned suite while new contests use the updated suite.  
+  
+**20.11 Fault and fail-safe tests**  
+	43.	Simulate Identity Authority unavailability and verify that already issued participation credentials remain usable while no new issuance proceeds.  
+	44.	Simulate Delegation Registry failure before T_freeze and verify that the system follows the declared extension or downgrade path.  
+	45.	Simulate Delegation Registry failure after T_freeze and verify that the last quorum-signed delegation snapshot commitment remains the binding reference.  
+	46.	Simulate Ballot Box outage near close and verify that:  
+  
+	•	incident declaration occurs,  
+	•	recovery instructions are published,  
+	•	extension or fallback behavior follows declared rules.  
+  
+	47.	Simulate trustee quorum loss and verify that certification is impossible.  
+	48.	Simulate proof failure and verify that the result is not certifiable.  
+	49.	Simulate a cryptographic-suite revocation mid-contest and verify that the contest is paused, downgraded, or restarted according to declared fail-safe rules.  
+  
+**20.12 Cross-class conformance rule**  
+  
+No contest class is conformant unless all tests applicable to its:  
+	•	secrecy class,  
+	•	delegation mode,  
+	•	publication mode,  
+	•	transitivity policy,  
+	•	recovery policy,  
+	•	and certification posture  
+  
+have been executed successfully against that contest-class profile.  
