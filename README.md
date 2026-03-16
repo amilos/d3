@@ -1,3 +1,8 @@
+
+<p align="center">
+  <img width="300" alt="D3 Logo" src="https://github.com/user-attachments/assets/9c3316b6-9d47-4593-bcf9-9f784eac8068" />
+</p>
+
 # Delegated Direct Democracy Platform (D3)
 
 A constitutional-grade civic platform that enables direct participation, proxy voting, public deliberation, and legally meaningful civic action across several use cases:
@@ -18,4 +23,4 @@ The platform is not merely a voting application. It is a civic operating system 
 4. [Requirements](<PRD v0.1.md>)
 
 ## License
-This work is licensed under a [Creative Commons Attribution 4.0 International License](https://creativecommons.org/licenses/by/4.0/).
+D3 specifications are licensed under a [Creative Commons Attribution 4.0 International License](https://creativecommons.org/licenses/by/4.0/).
