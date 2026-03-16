@@ -85,6 +85,7 @@ Most citizens are not full-time legislators. The platform must reduce overload, 
 
 This PRD uses the same contest-class taxonomy as the Constitutional Governance and Threat Model.
 
+
 ### 5.1 Contest classes
 
 | Class | Coverage | Binding force | Default channel posture | Secrecy posture | Delegation posture |
@@ -106,6 +107,8 @@ This PRD uses the same contest-class taxonomy as the Constitutional Governance a
 | 2 | Local binding contests | Hybrid | Secret ballot by default | Revoting and supervised override may apply |
 | 3 | High-stakes binding contests | Supervised-default | Secret ballot | Remote high-assurance extension requires separate authorization |
 
+
+
 ### 5.3 Assignment rule
 
 Every contest must declare, before opening:
@@ -118,6 +121,23 @@ Every contest must declare, before opening:
 - delegation posture
 - certification path
 - protocol profile reference
+
+
+```mermaid
+flowchart LR
+    A[Class A</br>Protected civic initiation] --> T0[Tier 0</br>Qualified civic acts]
+    B[Class B</br>Consultative civic contests] --> T1[Tier 1</br>Consultative voting]
+    C[Class C</br>Participatory budgeting] --> T2[Tier 2</br>Binding local decisions]
+    D[Class D</br>Local or community binding contests] --> T2
+    E[Class E</br>Selected national binding contests] --> T3[Tier 3</br>High-stakes binding decisions]
+    F[Class F</br>Delegation and proxy-state acts] --> T0
+    G[Class G</br>Public delegate acts] --> T1
+
+    T0 --> R0[Remote allowed]
+    T1 --> R1[Remote allowed</br>Secret ballot by default</br>Proxy enabled]
+    T2 --> R2[Remote plus supervised</br>Revoting and override where lawful]
+    T3 --> R3[Supervised by default</br>Highest assurance and review]
+```
 
 ## 6. Institutional actors and governance
 
@@ -171,6 +191,47 @@ The product operates within a layered governance model:
 ## 7. Trust boundaries
 
 This section defines what each trust boundary is for and what it must not do. Exact protocol semantics remain in the Technical Protocol.
+
+```mermaid
+flowchart LR
+    subgraph Auth[Identity and authorization]
+        IA[Identity domain]
+        EA[Eligibility domain]
+        CP[Contest and policy domain]
+    end
+
+    subgraph Privacy[Participation and privacy]
+        PD[Privacy domain]
+        DD[Delegation domain]
+        BD[Ballot-processing domain]
+    end
+
+    subgraph Info[Information and deliberation]
+        ID[Information and deliberation domain]
+    end
+
+    subgraph Evidence[Evidence and certification]
+        ED[Public evidence domain]
+        TD[Tally domain]
+        CD[Certification domain]
+        OD[Oversight domain]
+    end
+
+    IA --> EA --> PD
+    CP --> EA
+    CP --> DD
+    CP --> BD
+    CP --> TD
+    CP --> CD
+    ID --> BD
+    PD --> DD
+    PD --> BD
+    DD --> BD
+    BD --> ED --> TD --> CD
+    ED --> OD
+    CD --> OD
+```
+
 
 ### 7.1 Identity domain
 
@@ -322,6 +383,46 @@ The platform is composed of bounded subsystems. No single subsystem should be ab
 - certification service
 - observer and verifier APIs
 - incident and challenge service
+
+
+```mermaid
+flowchart LR
+    CR[Contest registry]
+    EI[Enrollment and identity service]
+    ES[Eligibility service]
+    PC[Privacy credential service]
+    DG[Delegation registry]
+    DI[Canonical issue dossier service]
+    DL[Deliberation service]
+    DW[Delegate workspace]
+    BC[Ballot client]
+    BI[Ballot intake service]
+    BB[Bulletin board]
+    TS[Tally service]
+    CS[Certification service]
+    OV[Observer and verifier APIs]
+    IC[Incident and challenge service]
+
+    CR --> ES
+    CR --> DG
+    CR --> DI
+    CR --> BC
+    CR --> BI
+    CR --> TS
+    CR --> CS
+    EI --> ES --> PC --> BC
+    DG --> DW
+    DI --> DL --> BC
+    DW --> DL
+    BC --> DG
+    BC --> BI --> BB --> TS --> CS
+    BB --> OV
+    CS --> OV
+    BI --> IC
+    CS --> IC
+    OV --> IC
+```
+
 
 ### 8.2 Contest registry
 
@@ -775,6 +876,22 @@ The platform must support:
 
 This section defines the governance lifecycle by which issues become votable and move from proposal to legally recognized outcome.
 
+
+```mermaid
+stateDiagram-v2
+    [*] --> Initiation
+    Initiation --> Admissibility
+    Admissibility --> Publication
+    Publication --> Deliberation
+    Deliberation --> Voting
+    Voting --> Review
+    Review --> Certification
+    Certification --> Archival
+    Review --> Refusal
+    Refusal --> Archival
+    Archival --> [*]
+```
+
 ### 12.1 Authorized initiation channels
 
 A contest may enter the platform through one or more declared channels:
@@ -828,6 +945,29 @@ Every contest must have a visible lifecycle state from proposal through archival
 ## 13. Information integrity and deliberation policy
 
 This section defines platform-wide rules for official issue presentation, civic deliberation, AI usage, and information ordering.
+
+```mermaid
+flowchart TD
+    SC[Signed source corpus]
+    LT[Legal text and redlines]
+    EM[Explanatory materials]
+    AB[Adversarial briefs]
+    CA[Citizen assembly outputs]
+    MR[Moderation and review]
+    AI[Allowed AI services</br>summary translation accessibility]
+    CD[Canonical dossier]
+    UX[Citizen decision surface]
+
+    SC --> CD
+    LT --> CD
+    EM --> CD
+    AB --> CD
+    CA --> CD
+    MR --> CD
+    AI --> CD
+    CD --> UX
+```
+
 
 ### 13.1 Canonical issue presentation
 
@@ -890,6 +1030,26 @@ Provenance, transparency of summaries, moderation accountability, AI usage const
 ## 14. User experience principles
 
 User experience is a constitutional-quality requirement, not a decorative layer. The platform must be understandable, neutral, safe, and legible under real-world conditions.
+
+
+```mermaid
+flowchart LR
+    U[Citizen enters contest] --> Read[Read issue summary and dossier]
+    Read --> Choice{Choose path}
+    Choice --> Direct[Vote directly]
+    Choice --> Proxy[Use or change delegation]
+    Choice --> Abstain[Abstain]
+    Direct --> Verify[Review confirmation and short-lived verification]
+    Proxy --> Delegate[Inspect delegate profile and rationale]
+    Delegate --> Override{Override directly?}
+    Override -->|Yes| Direct
+    Override -->|No| Verify
+    Abstain --> Verify
+    Verify --> Help{Need support?}
+    Help -->|Yes| Assisted[Helper-assisted or supervised access]
+    Help -->|No| Done[Participation complete]
+    Assisted --> Done
+```
 
 ### 14.1 UX objectives
 
@@ -1069,6 +1229,47 @@ The UX and accessibility layer is acceptable only if testing shows that represen
 
 This section defines how the platform is secured as a system of institutions, services, trust boundaries, and operational controls. It stays at a high level by design.
 
+
+```mermaid
+flowchart TB
+    subgraph L1[Layer 1 — Civic governance]
+        GOV[Civic governance layer]
+    end
+
+    subgraph L2[Layer 2 — Identity and authorization]
+        IDL[Identity domain]
+        EGL[Eligibility domain]
+        CPL[Contest and policy domain]
+    end
+
+    subgraph L3[Layer 3 — Participation and privacy]
+        PRL[Privacy domain]
+        DEL[Delegation domain]
+        BAL[Ballot-processing domain]
+        INF[Information and deliberation domain]
+    end
+
+    subgraph L4[Layer 4 — Evidence and certification]
+        EVI[Public evidence domain]
+        TAL[Tally domain]
+        CER[Certification domain]
+        OVR[Oversight domain]
+    end
+
+    GOV --> IDL
+    GOV --> EGL
+    GOV --> CPL
+    CPL --> PRL
+    CPL --> DEL
+    CPL --> BAL
+    CPL --> TAL
+    INF --> BAL
+    PRL --> DEL
+    PRL --> BAL
+    BAL --> EVI --> TAL --> CER --> OVR
+    EVI --> OVR
+```
+
 ### 16.1 Architectural stance
 
 The platform uses a split-trust architecture.
@@ -1242,6 +1443,23 @@ The product posture requires:
 If there is tension between a high-level statement in this PRD and a precise technical rule in the Technical Protocol, the protocol governs the operational semantics. If there is tension between this PRD and the Constitutional Governance and Threat Model on democratic invariants, rights posture, red lines, or viability conditions, the Threat Model governs.
 
 ## 18. Rollout roadmap
+
+```mermaid
+flowchart LR
+    P0[Phase 0</br>Constitutional and technical foundation] --> P1[Phase 1</br>Tier 0 and Tier 1]
+    P1 --> P2[Phase 2</br>Tier 2 local binding]
+    P2 --> P3[Phase 3</br>National consultative shadow chamber]
+    P3 --> P4[Phase 4</br>Limited high-stakes binding deployment]
+    P4 --> P5[Phase 5</br>Advanced crypto migration]
+
+    P0 --> G0[Exit gate</br>architecture proven]
+    P1 --> G1[Exit gate</br>trust and uptake proven]
+    P2 --> G2[Exit gate</br>local legitimacy proven]
+    P3 --> G3[Exit gate</br>operational maturity proven]
+    P4 --> G4[Exit gate</br>legal and protocol confidence]
+    P5 --> G5[Exit gate</br>migration without loss of verifiability]
+```
+
 
 ### 18.1 Phase 0: Constitutional and technical foundation
 
