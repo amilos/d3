@@ -1,6 +1,6 @@
 
 <p align="center">
-  <img width="300" alt="D3 Logo" src="https://github.com/user-attachments/assets/9c3316b6-9d47-4593-bcf9-9f784eac8068" />
+  <img width="300" alt="D3 Logo" src="logo.svg" />
 </p>
 
 # Delegated Direct Democracy Platform (D3)
