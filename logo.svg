@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 360" width="100%" height="100%">
+
+  <g id="bottom-block">
+    <polygon points="150,178 70,210 70,230 150,198" fill="#4D6E66"/>
+    <polygon points="150,178 230,210 230,230 150,198" fill="#233E42"/>
+    <polygon points="150,198 230,230 150,262 70,230" fill="#B8C4B8"/>
+    
+    <polygon points="150,178 230,210 150,242 70,210" fill="#E8EDE8" fill-opacity="0.85"/>
+    
+    <polygon points="70,210 150,242 150,262 70,230" fill="#2E4F54"/>
+    <polygon points="150,242 230,210 230,230 150,262" fill="#628A81"/>
+  </g>
+
+  <g id="middle-block">
+    <polygon points="150,138 70,170 70,190 150,158" fill="#52706D"/>
+    <polygon points="150,138 230,170 230,190 150,158" fill="#1F384D"/>
+    <polygon points="150,158 230,190 150,222 70,190" fill="#B5C2D1"/>
+    
+    <polygon points="150,138 230,170 150,202 70,170" fill="#E5EAF0" fill-opacity="0.85"/>
+    
+    <polygon points="70,170 150,202 150,222 70,190" fill="#2A4964"/>
+    <polygon points="150,202 230,170 230,190 150,222" fill="#698B87"/>
+  </g>
+
+  <g id="top-block">
+    <polygon points="150,98 70,130 70,150 150,118" fill="#2B4161"/>
+    <polygon points="150,98 230,130 230,150 150,118" fill="#1D304A"/>
+    <polygon points="150,118 230,150 150,182 70,150" fill="#3D567A"/>
+    
+    <polygon points="150,98 230,130 150,162 70,130" fill="#4F6A90" fill-opacity="0.85"/>
+    
+    <polygon points="70,130 150,162 150,182 70,150" fill="#263E5E"/>
+    <polygon points="150,162 230,130 230,150 150,182" fill="#365074"/>
+  </g>
+
+</svg>
